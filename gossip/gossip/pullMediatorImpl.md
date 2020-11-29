@@ -1,13 +1,13 @@
 # Gossip-pullMediatorImpl
 
-pullMediatorImpl 作为一个中介者模式，其封装了一系列PullEngine与PullAdapter的操作，并提供Medistor接口供外部调用。其使得各对象之间不需要显式的相互引用，从而使其耦合松散，而且可以独立地改变它们之间的交互。
+pullMediatorImpl 作为一个中介者模式，其封装了一系列PullEngine与PullAdapter的操作，并实现Mediator接口供外部调用。其使得各对象之间不需要显式的相互引用，从而使其耦合松散，而且可以独立地改变它们之间的交互。
 
-本文流程：
+本文介绍流程：
 - 首先介绍 pullMediatorImpl 实现的 Mediator 接口，了解其提供给外部的功能。
 - 其次介绍 pullMediatorImpl 的配置 Config，因为一些重要的配置变量将影响如何理解处理流程。
 - 最后再讲解 pullMediatorImpl 的具体实现。包括三方面：介绍其基本成员变量；初始化 pullMediatorImpl 的 NewPullMediator 函数；处理消息的 HandleMessage 函数。
 
-## Medistor 接口
+## Mediator 接口
 
 ```
 type Mediator interface {
@@ -30,15 +30,17 @@ type Mediator interface {
 
 Mediator是包装PullEngine的组件，提供执行拉取同步所需的方法。将拉取中介特殊化为某种类型的消息是由配置、IdentifierExtractor、构造时给出的IdentifierExtractor以及可以为每种类型的pullMsgType (hello、digest、req、res)注册的钩子完成的。
 
+接口的实现对象即为 pullMediatorImpl。
+
 ## Config
 
 ```
 type Config struct {
 	ID                string                  // 配置ID
-	PullInterval      time.Duration           // Pull间隔时间
-	Channel           common.ChannelID        // 链ID
-	PeerCountToSelect int                     // 拉取时选取的节点数
-	Tag               proto.GossipMessage_Tag // 消息标签
+	PullInterval      time.Duration           // 拉取引擎pull间隔时间
+	Channel           common.ChannelID        // 链ID，在GossipMessage中填写
+	PeerCountToSelect int                     // 拉取引擎每次pull时选取的节点数
+	Tag               proto.GossipMessage_Tag // 消息标签，在GossipMessage中填写
 	MsgType           proto.PullMsgType       // 拉取的消息类型
 	PullEngineConfig  algo.PullEngineConfig   // 拉取引擎配置
 }
@@ -78,7 +80,7 @@ type PullAdapter struct {
 }
 ```
 
-**Pullengine 中的 PullAdaptor**
+**PullEngine 中的 PullAdaptor**
 
 ```
 type PullAdapter interface {
@@ -101,7 +103,7 @@ type PullAdapter interface {
 
 ## 主要实现
 
-注意：pullMediatorImpl同时实现了Mediator与PullAdapter接口。
+注意：pullMediatorImpl同时实现了Mediator与PullAdapter接口，由于大部分接口实现均较为容易，这里仅讲解HandleMessage。
 
 ### NewPullMediator
 
@@ -143,7 +145,7 @@ func NewPullMediator(config Config, adapter *PullAdapter) Mediator {
 
 通过 NewPullMediator 函数创建一个pullMediatorImpl实例并返回一个Mediator接口。在初始化拉取引擎后，拉取引擎就开始了工作（具体实现可以参考PullEngine说明）。
 
-用户根据config与adapter定制拉取引擎，包括数据的发送方式与拉取的消息类型等。
+初始化 pullMediatorImpl 时，用户根据config与adapter参数定制拉取引擎，定制包括指定消息的发送方式与拉取的消息类型等。
 
 ### HandleMessage
 
@@ -209,13 +211,14 @@ func (p *pullMediatorImpl) HandleMessage(m protoext.ReceivedMessage) {
 
 数据的处理流程：
 
-- 当接收的消息 m 到来时，需要判断 m 的类型是否为要处理的消息类型。若是，则进一步根据类型(Hello/Digest/Request/Response)分发处理。拉取引擎处理完成后，再调用对应消息类型的钩子函数对消息处理。
+- 当接收的消息 m 到来时，需要判断 m 的类型是否为要处理的消息类型。若是，则进一步根据类型(Hello/Digest/Request/Response)分发处理。拉取引擎处理完成后，再调用对应消息类型的钩子函数对消息拦截处理。
 
 ## 总结
 
 拉取中介整体实现逻辑较为简单，因为具体的实现逻辑均由PullEngine、PullAdapter等实现。
 
+**总结要点**
 - 用户调用 HandleMessage 处理接收的Pull消息。
 - 用户可以调用RegisterMsgHook注册钩子，拦截处理指定的消息。
-- pullMediatorImpl 目前仅仅被gossipChannel与certStore用于同步block与节点之间的证书。
+- pullMediatorImpl 目前仅仅被gossipChannel与certStore用于同步block与同步节点之间的证书。
 - pullMediatorImpl 保存了摘要以及摘要所对应的具体消息，而PullEngine仅保存摘要信息。
