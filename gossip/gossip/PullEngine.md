@@ -344,4 +344,6 @@ endPull 做了相关的清空操作。
 - 整个拉取流程是在协程中一直无限循环的，由 initiatePull 开始整个拉取流程。
 - 无论是Digest还是Response的消息处理函数都是延时调用的。
 
-![PullEngine](./PullEngine.png)
+**pull流程**
+
+![PullEngine 时序图](./PullEngine.png)
