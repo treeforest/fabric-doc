@@ -347,3 +347,9 @@ endPull 做了相关的清空操作。
 **pull流程**
 
 ![PullEngine 时序图](./PullEngine.png)
+
+对协议流程4个步骤的进一步重新解释：
+1. 发起者调用Hello函数向一组远程peer节点发送带有特定nonce串的hello消息。
+2. 每个远程peer节点都用其消息摘要响应，节点调用SendDigest函数返回一个消息摘要及收到的特殊nonce串给发起者。
+3. 发起者调用OnDigest函数处理接收到的消息摘要，检查接收到的nonce的有效性，聚合摘要，并构造一个包含它希望从每个远程peer节点接收的特定项目ID的请求，然后调用SendReq函数将每个请求发送到其对应的peer节点，请求消息中包含发起者所需要的从peer节点获取的item序号。
+4. peer节点收到请求消息后，调用OnRes函数对其进行处理，再调用SendRes函数发送发起者所需的items消息。
